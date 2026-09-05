@@ -2,6 +2,7 @@
 # RAG-Pipeline
 - RAGs is a method where we combine LLMs with retrieval system.
 <img width="814" height="402" alt="Screenshot 2026-09-03 at 7 22 15 PM" src="https://github.com/user-attachments/assets/8d946987-c1c1-46f3-b887-561ec8387a35" />
+<img width="660" height="566" alt="Screenshot 2026-09-05 at 10 47 27 AM" src="https://github.com/user-attachments/assets/b785d24c-8112-4db4-b090-9a1da38e221e" />
 
 
 
