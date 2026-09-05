@@ -1,11 +1,23 @@
 import os
 from langchain_community.document_loaders import TextLoader, DirectoryLoader
 from langchain_text_splitters import CharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from dotenv import load_dotenv
 
-load_dotenv()
+# Must match Retrieval_pipeline.py. Runs fully offline after the first model download.
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+
+
+def get_embeddings():
+    """Create the local embedding model (no OpenAI credits required)."""
+    print(f"Loading local embedding model: {EMBEDDING_MODEL}")
+    print("(First run downloads the model; later runs use the local cache.)")
+    return HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL,
+        model_kwargs={"device": "cpu"},
+        encode_kwargs={"normalize_embeddings": True},
+        show_progress=True,
+    )
 
 # 1st Step: Load documents from the docs directory
 def load_documents(docs_path="docs"):
@@ -72,8 +84,7 @@ def create_vectorstore(chunks, persist_directory="db/chroma_db"):
     """Create and persist ChromaDB vector store"""
     print("Creating embeddings and storing in ChromaDB...")
 
-    # Create embeddings
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+    embeddings = get_embeddings()
 
     # Create ChromaDB vector store
     print("--- Creating ChromaDB vector store ---")
@@ -97,20 +108,22 @@ def main():
     docs_path = "docs"
     persist_directory = "db/chroma_db"
 
-    # Check if vector store already exists
+    # Skip only if the store already has vectors (a failed run can leave an empty folder)
     if os.path.exists(persist_directory):
-        print(f"Vector store already exists in '{persist_directory}'. Skipping ingestion.")
-
-        embedding_model = OpenAIEmbeddings(model="text-embedding-3-small")
+        embedding_model = get_embeddings()
         vectorstore = Chroma(
             persist_directory=persist_directory,
             embedding_function=embedding_model,
-            collection_metadata={"hnsw:space":"cosine"}
+            collection_metadata={"hnsw:space": "cosine"}
         )
-        print(f"Loaded existing vector store with {vectorstore._collection.count()} vectors.")
-        return vectorstore
-
-    print("Persiting dirctory does not exist. Proceeding with ingestion pipeline...\n")
+        existing_count = vectorstore._collection.count()
+        if existing_count > 0:
+            print(f"Vector store already exists in '{persist_directory}'. Skipping ingestion.")
+            print(f"Loaded existing vector store with {existing_count} vectors.")
+            return vectorstore
+        print("Existing vector store is empty. Re-running ingestion...\n")
+    else:
+        print("Persisting directory does not exist. Proceeding with ingestion pipeline...\n")
 
     # Load documents
     documents = load_documents(docs_path)
